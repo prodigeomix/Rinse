@@ -195,6 +195,15 @@ PriorityDebuffs[L["Enveloped Flames"]] = true -- prio so it shows up for pets!
 PriorityDebuffs[L["Poison Charge"]] = true -- to prio it over curses for druids
 PriorityDebuffs[L["Arcane Focus"]] = true -- tank prio for medivh
 PriorityDebuffs[L["Freezing Chill"]] = true -- tank prio for medivh
+PriorityDebuffs[L["Impending Doom"]] = true -- Lucifron (MC) 2000 shadow dmg after 10s
+PriorityDebuffs[L["Brood Affliction: Blue"]] = true -- Chromaggus (BWL) -50% cast speed & mana burn
+PriorityDebuffs[L["Brood Affliction: Red"]] = true -- Chromaggus (BWL) heals boss 150k on death
+PriorityDebuffs[L["Decrepit Fever"]] = true -- Heigan (Naxx) -50% max HP
+PriorityDebuffs[L["Twisted Reflection"]] = true -- Kazzak heals 25k on player hit
+PriorityDebuffs[L["True Fulfillment"]] = true -- Skeram (AQ40) Mind Control
+PriorityDebuffs[L["Plague"]] = true -- Anubisath Defender (AQ40) spreading disease
+PriorityDebuffs[L["Enveloping Winds"]] = true -- Ossirian (AQ20) 10s stun
+PriorityDebuffs[L["Hex"]] = true -- Jin'do (ZG) polymorph
 
 -- Spells that player doesnt want to see (these will NOT block any other debuffs from showing)
 -- Can be name of the debuff or a type
@@ -214,6 +223,7 @@ DefaultFilter[L["Fengus' Ferocity"]] = true
 DefaultFilter[L["Slip'kik's Savvy"]] = true
 DefaultFilter[L["Thunderfury"]] = true
 DefaultFilter[L["Magma Shackles"]] = true
+DefaultFilter[L["Emerald Rot"]] = true
 
 local Filter = {}
 for k, v in pairs(DefaultFilter) do Filter[k] = v end
@@ -226,14 +236,21 @@ DefaultClassFilter["WARRIOR"][L["Ignite Mana"]] = true
 DefaultClassFilter["WARRIOR"][L["Tainted Mind"]] = true
 DefaultClassFilter["WARRIOR"][L["Moroes Curse"]] = true
 DefaultClassFilter["WARRIOR"][L["Curse of Manascale"]] = true
+DefaultClassFilter["WARRIOR"][L["Mana Burn"]] = true
+DefaultClassFilter["WARRIOR"][L["Silence"]] = true
+DefaultClassFilter["WARRIOR"][L["Smoke Bomb"]] = true
+DefaultClassFilter["WARRIOR"][L["Screams of the Past"]] = true
+DefaultClassFilter["WARRIOR"][L["Sonic Burst"]] = true
 DefaultClassFilter["ROGUE"][L["Silence"]] = true
 DefaultClassFilter["ROGUE"][L["Ancient Hysteria"]] = true
 DefaultClassFilter["ROGUE"][L["Ignite Mana"]] = true
 DefaultClassFilter["ROGUE"][L["Tainted Mind"]] = true
 DefaultClassFilter["ROGUE"][L["Smoke Bomb"]] = true
 DefaultClassFilter["ROGUE"][L["Screams of the Past"]] = true
+DefaultClassFilter["ROGUE"][L["Sonic Burst"]] = true
 DefaultClassFilter["ROGUE"][L["Moroes Curse"]] = true
 DefaultClassFilter["ROGUE"][L["Curse of Manascale"]] = true
+DefaultClassFilter["ROGUE"][L["Mana Burn"]] = true
 DefaultClassFilter["WARLOCK"][L["Rift Entanglement"]] = true
 
 local ClassFilter = {}
@@ -254,7 +271,6 @@ SnareDebuffs[L["Web"]] = true
 SnareDebuffs[L["Enveloping Web"]] = true
 SnareDebuffs[L["Encasing Webs"]] = true
 SnareDebuffs[L["Surge of Mana"]] = true
-SnareDebuffs[L["Hooked Net"]] = true
 
 local function wipe(array)
 	if type(array) ~= "table" then return end
@@ -1167,7 +1183,7 @@ function RinseFrame_OnEvent()
 		RINSE_CONFIG.BUTTONS = RINSE_CONFIG.BUTTONS == nil and BUTTONS_MAX or RINSE_CONFIG.BUTTONS
 		RINSE_CONFIG.SHOW_HEADER = RINSE_CONFIG.SHOW_HEADER == nil and true or RINSE_CONFIG.SHOW_HEADER
 		RINSE_CONFIG.SHADOWFORM = RINSE_CONFIG.SHADOWFORM == nil and true or RINSE_CONFIG.SHADOWFORM
-		RINSE_CONFIG.IGNORE_ABOLISH = RINSE_CONFIG.IGNORE_ABOLISH == nil and true or RINSE_CONFIG.IGNORE_ABOLISH
+		RINSE_CONFIG.IGNORE_ABOLISH = RINSE_CONFIG.IGNORE_ABOLISH == nil and false or RINSE_CONFIG.IGNORE_ABOLISH
 		RINSE_CONFIG.PETS = RINSE_CONFIG.PETS == nil and false or RINSE_CONFIG.PETS
 		RINSE_CHAR_CONFIG.BLACKLIST = RINSE_CHAR_CONFIG.BLACKLIST or {}
 		RINSE_CHAR_CONFIG.FILTER = RINSE_CHAR_CONFIG.FILTER or {
@@ -1541,7 +1557,7 @@ end
 
 function Rinse_Cleanse(button, attemptedCast)
 	local button = button or this
-	if not button.unit or button.unit == "" then
+	if not button or not button.unit or button.unit == "" or not UnitExists(button.unit) or not UnitIsConnected(button.unit) or UnitIsDead(button.unit) then
 		return false
 	end
 	local debuff = _G[button:GetName().."Name"]:GetText()
@@ -1584,7 +1600,9 @@ function Rinse_Cleanse(button, attemptedCast)
 		lastButton = button
 	end
 	if superwow then
-		CastSpellByName(spellName, button.unit)
+		if button.unit and UnitExists(button.unit) then
+			CastSpellByName(spellName, button.unit)
+		end
 	else
 		local selfcast = GetCVar("autoselfcast")
 		local assist = GetCVar("assistattack")
