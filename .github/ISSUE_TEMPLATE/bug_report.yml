@@ -1,0 +1,59 @@
+name: "Bug Report"
+description: "Report a bug or unexpected behavior in Rinse"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please ensure you have tested with the latest release.
+
+  - type: checkboxes
+    id: client_extensions
+    attributes:
+      label: "Client & Extension Environment"
+      description: "Select all client modifications and extensions currently active:"
+      options:
+        - label: "Turtle WoW Client Patch 1.18.1 (1.12.1 Engine)"
+          required: true
+        - label: "SuperWoW Native DLL (UnitPosition / spellId in UnitDebuff)"
+        - label: "Nampower Native DLL (SPELL_QUEUE_EVENT / GetCurrentCastingInfo)"
+        - label: "UnitXP SP3 (distanceBetween / inSight)"
+        - label: "MikSBT (Combat Text Announcements)"
+
+  - type: input
+    id: character_info
+    attributes:
+      label: "Character Class & Dispel Setup"
+      description: "Character class, active cleansing spells, and group type (Solo, Party, 40-man Raid):"
+      placeholder: "e.g. Paladin with Cleanse & Purify in 40-man Molten Core raid"
+    validations:
+      required: true
+
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: "Bug Description"
+      description: "A clear and concise description of what the bug is:"
+      placeholder: "Explain what happened versus what you expected to happen..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: "Steps To Reproduce"
+      description: "Steps to reproduce the behavior:"
+      value: |
+        1. Press macro `/rinse`
+        2. During encounter / debuff state ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs_or_errors
+    attributes:
+      label: "Lua Error / Chat Output"
+      description: "Paste Lua error message or chat output if available:"
+      render: text

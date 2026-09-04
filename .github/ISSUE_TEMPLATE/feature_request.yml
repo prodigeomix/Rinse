@@ -1,0 +1,27 @@
+name: "Feature Request"
+description: "Suggest an idea or enhancement for Rinse"
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggest an enhancement or new feature for Rinse. Please verify it respects Lua 5.0 and WoW 1.12.1 constraints.
+
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: "Feature Description"
+      description: "A clear and concise description of the feature or encounter optimization:"
+      placeholder: "Describe the desired functionality or encounter priority tweak..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: raid_encounter_context
+    attributes:
+      label: "Raid Encounter Context"
+      description: "Which raid or dungeon encounter does this benefit (e.g. Ahn'Qiraj, Naxxramas, Karazhan Crypts)?"
+      placeholder: "Explain why this change improves raid efficiency or prevents wipe mechanics..."
+    validations:
+      required: false

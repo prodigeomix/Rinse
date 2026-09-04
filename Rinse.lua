@@ -337,20 +337,21 @@ local function HasAbolish(unit, debuffType)
 	if not (debuffType == L["Poison"] or debuffType == L["Disease"]) then
 		return false
 	end
-	local i = 1
-	local buff, icon
+	local icon
 	if debuffType == L["Poison"] then
 		icon = "Interface\\Icons\\Spell_Nature_NullifyPoison_02"
 	elseif debuffType == L["Disease"] then
 		icon = "Interface\\Icons\\Spell_Nature_NullifyDisease"
 	end
-	repeat
-		buff = UnitBuff(unit, i)
+	for i = 1, 32 do
+		local buff = UnitBuff(unit, i)
+		if not buff then
+			break
+		end
 		if buff == icon then
 			return true
 		end
-		i = i + 1
-	until not buff
+	end
 	return false
 end
 
@@ -368,6 +369,7 @@ end
 
 local function CanCast(unit, spell)
 	if not unit then return false end
+	if UnitIsUnit("player", unit) then return true end
 
 	local inRange
 
@@ -376,16 +378,18 @@ local function CanCast(unit, spell)
 		-- if spell and IsSpellInRange then
 		-- 	inRange = IsSpellInRange(spell, unit) == 1
 		-- end
-		if unitxp then
+		if unitxp and type(UnitXP) == "function" then
 			-- Accounts for true reach. A tauren can dispell a male tauren at 38y!
 			inRange = UnitXP("distanceBetween", "player", unit) < 30
-		elseif superwow then
+		elseif superwow and type(UnitPosition) == "function" then
 			local myX, myY, myZ = UnitPosition("player")
 			local uX, uY, uZ = UnitPosition(unit)
-			if uX then
+			if myX and uX then
 				local dx, dy, dz = uX - myX, uY - myY, uZ - myZ
 				-- sqrt(1089) == 33, smallest max dispell range not accounting for true melee reach
 				inRange = ((dx * dx) + (dy * dy) + (dz * dz)) <= 1089
+			else
+				inRange = CheckInteractDistance(unit, 4)
 			end
 		else
 			-- Not as accurate
@@ -397,11 +401,11 @@ local function CanCast(unit, spell)
 	end
 
 	if inRange then
-        if unitxp then
-            return UnitXP("inSight", "player", unit)
-        else
-            return UnitIsVisible(unit)
-        end
+		if unitxp and type(UnitXP) == "function" then
+			return UnitXP("inSight", "player", unit)
+		else
+			return UnitIsVisible(unit)
+		end
 	end
 
 	return false
@@ -426,7 +430,12 @@ local function UpdatePrio()
 	end
 	-- Always add pets to scan list (filtering happens during save based on RINSE_CONFIG.PETS)
 	for i = 1, getn(Prio) do
-		tinsert(Prio, (gsub(Prio[i], "(%a+)(%d*)", "%1pet%2")))
+		local u = Prio[i]
+		if u == "player" then
+			tinsert(Prio, "pet")
+		else
+			tinsert(Prio, (gsub(u, "(%a+)(%d*)", "%1pet%2")))
+		end
 	end
 	-- Get rid of duplicates and UnitIDs that we can't match to names in our raid/party
 	wipelist(Seen)
@@ -1018,6 +1027,7 @@ local function UpdateDirection()
 		RinseFrameBackground:SetPoint("TOP", 0, -5)
 		RinseFrameTitle:ClearAllPoints()
 		RinseFrameTitle:SetPoint("TOPLEFT", 12, -12)
+		RinseDebuffsFrame:ClearAllPoints()
 		if RINSE_CONFIG.SHOW_HEADER then
 			RinseDebuffsFrame:SetPoint("TOP", RinseFrame, "TOP", 0, -35)
 		else
@@ -1040,6 +1050,7 @@ local function UpdateDirection()
 		RinseFrameBackground:SetPoint("BOTTOM", 0, 5)
 		RinseFrameTitle:ClearAllPoints()
 		RinseFrameTitle:SetPoint("BOTTOMLEFT", 12, 12)
+		RinseDebuffsFrame:ClearAllPoints()
 		RinseDebuffsFrame:SetPoint("TOP", RinseFrame, "TOP", 0, -5)
 		for i = 1, BUTTONS_MAX do
 			local frame = _G["RinseFrameDebuff"..i]
@@ -1103,6 +1114,7 @@ local function UpdateHeader()
 		RinseFrameBackground:Show()
 		RinseFrameTitle:Show()
 		RinseFrame:SetHeight(BUTTONS_MAX * 42 + 40)
+		RinseDebuffsFrame:ClearAllPoints()
 		if RINSE_CONFIG.FLIP then
 			RinseDebuffsFrame:SetPoint("TOP", RinseFrame, "TOP", 0, -5)
 		else
@@ -1113,6 +1125,7 @@ local function UpdateHeader()
 		RinseFrameBackground:Hide()
 		RinseFrameTitle:Hide()
 		RinseFrame:SetHeight(BUTTONS_MAX * 42 + 10)
+		RinseDebuffsFrame:ClearAllPoints()
 		RinseDebuffsFrame:SetPoint("TOP", RinseFrame, "TOP", 0, -5)
 		ChatFrame1:AddMessage(BLUE.."[Rinse]|r "..L["Buttons are hidden, to access option and lists use /rinse options, /rinse skip or /rinse prio."])
 	end
@@ -1129,7 +1142,8 @@ function RinseFrame_OnLoad()
 	RinseFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
 	RinseFrame:RegisterEvent("SPELLS_CHANGED")
 	RinseFrame:RegisterEvent("CHAT_MSG_ADDON")
-	if GetNampowerVersion then
+	RinseFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+	if type(GetNampowerVersion) == "function" then
 		-- Announce queued decurses
 		RinseFrame:RegisterEvent("SPELL_QUEUE_EVENT")
 	end
@@ -1173,15 +1187,27 @@ function RinseFrame_OnEvent()
 		RINSE_CONFIG.PRIO_ARRAY = RINSE_CONFIG.PRIO_ARRAY or {}
 		RebuildSkipNames()
 		RINSE_CONFIG.POSITION = RINSE_CONFIG.POSITION or {x = 0, y = 0}
-		RINSE_CONFIG.SCALE = RINSE_CONFIG.SCALE or 0.85
-		RINSE_CONFIG.OPACITY = RINSE_CONFIG.OPACITY or 1.0
+		if type(RINSE_CONFIG.POSITION) ~= "table" or type(RINSE_CONFIG.POSITION.x) ~= "number" or type(RINSE_CONFIG.POSITION.y) ~= "number" then
+			RINSE_CONFIG.POSITION = {x = 0, y = 0}
+		end
+		RINSE_CONFIG.SCALE = tonumber(RINSE_CONFIG.SCALE) or 0.85
+		if RINSE_CONFIG.SCALE < 0.5 or RINSE_CONFIG.SCALE > 2.0 then
+			RINSE_CONFIG.SCALE = 0.85
+		end
+		RINSE_CONFIG.OPACITY = tonumber(RINSE_CONFIG.OPACITY) or 1.0
+		if RINSE_CONFIG.OPACITY < 0.1 or RINSE_CONFIG.OPACITY > 1.0 then
+			RINSE_CONFIG.OPACITY = 1.0
+		end
 		RINSE_CONFIG.PRINT = RINSE_CONFIG.PRINT == nil and true or RINSE_CONFIG.PRINT
 		RINSE_CONFIG.MSBT = RINSE_CONFIG.MSBT == nil and true or RINSE_CONFIG.MSBT
 		RINSE_CONFIG.SOUND = RINSE_CONFIG.SOUND == nil and true or RINSE_CONFIG.SOUND
 		RINSE_CONFIG.LOCK = RINSE_CONFIG.LOCK == nil and false or RINSE_CONFIG.LOCK
 		RINSE_CONFIG.BACKDROP = RINSE_CONFIG.BACKDROP == nil and true or RINSE_CONFIG.BACKDROP
 		RINSE_CONFIG.FLIP = RINSE_CONFIG.FLIP == nil and false or RINSE_CONFIG.FLIP
-		RINSE_CONFIG.BUTTONS = RINSE_CONFIG.BUTTONS == nil and BUTTONS_MAX or RINSE_CONFIG.BUTTONS
+		RINSE_CONFIG.BUTTONS = tonumber(RINSE_CONFIG.BUTTONS) or BUTTONS_MAX
+		if RINSE_CONFIG.BUTTONS < 1 or RINSE_CONFIG.BUTTONS > 20 then
+			RINSE_CONFIG.BUTTONS = BUTTONS_MAX
+		end
 		RINSE_CONFIG.SHOW_HEADER = RINSE_CONFIG.SHOW_HEADER == nil and true or RINSE_CONFIG.SHOW_HEADER
 		RINSE_CONFIG.SHADOWFORM = RINSE_CONFIG.SHADOWFORM == nil and true or RINSE_CONFIG.SHADOWFORM
 		RINSE_CONFIG.IGNORE_ABOLISH = RINSE_CONFIG.IGNORE_ABOLISH == nil and false or RINSE_CONFIG.IGNORE_ABOLISH
@@ -1201,17 +1227,14 @@ function RinseFrame_OnEvent()
 			RINSE_CHAR_CONFIG.BLACKLIST["Thunderclap"] = nil
 			RINSE_CHAR_CONFIG.FILTER[L["Thunderclap"]] = true
 		end
-		RINSE_CHAR_CONFIG.FILTER_CLASS = RINSE_CHAR_CONFIG.FILTER_CLASS or {
-			WARRIOR = {},
-			DRUID   = {},
-			PALADIN = {},
-			WARLOCK = {},
-			MAGE    = {},
-			PRIEST  = {},
-			ROGUE   = {},
-			HUNTER  = {},
-			SHAMAN  = {},
-		}
+		RINSE_CHAR_CONFIG.FILTER_CLASS = RINSE_CHAR_CONFIG.FILTER_CLASS or {}
+		local validClasses = {"WARRIOR", "DRUID", "PALADIN", "WARLOCK", "MAGE", "PRIEST", "ROGUE", "HUNTER", "SHAMAN"}
+		for i = 1, getn(validClasses) do
+			local c = validClasses[i]
+			if not RINSE_CHAR_CONFIG.FILTER_CLASS[c] then
+				RINSE_CHAR_CONFIG.FILTER_CLASS[c] = {}
+			end
+		end
 		RinseFrame:ClearAllPoints()
 		RinseFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", RINSE_CONFIG.POSITION.x, RINSE_CONFIG.POSITION.y)
 		RinseFrame:SetScale(RINSE_CONFIG.SCALE)
@@ -1302,6 +1325,7 @@ function RinseFrame_OnEvent()
 		-- NORMAL_QUEUE_POPPED = 3
 		if arg1 ~= 3 then return end
 
+		if type(GetSpellNameAndRankForId) ~= "function" then return end
 		local spellName = GetSpellNameAndRankForId(arg2)
 		if not (lastSpellName and lastButton and lastSpellName == spellName) then return end
 
@@ -1321,6 +1345,12 @@ function RinseFrame_OnEvent()
 		autoattack = UnitName("target")
 	elseif event == "PLAYER_LEAVE_COMBAT" then
 		autoattack = nil
+	elseif event == "PLAYER_REGEN_ENABLED" then
+		autoattack = nil
+		errorCooldown = 0
+		stopCastCooldown = 0
+		lastSpellName = nil
+		lastButton = nil
 	elseif event == "CHAT_MSG_ADDON" and arg1 == "Rinse" and arg4 ~= UnitName("player") then
 		if arg2 == "REPORT_ADDON_VERSION" then
 			SendAddonMessage("Rinse", "V_"..GetAddOnMetadata("Rinse", "Version"), "RAID")
@@ -1335,21 +1365,23 @@ end
 local function GetDebuffInfo(unit, i)
 	local debuffName
 	local debuffType
-	local texture
-	local applications
+	local texture, applications, debuffTypeRet, spellId
 	if superwow then
-		local spellId
-		texture, applications, debuffType, spellId = UnitDebuff(unit, i)
-		if spellId then
+		texture, applications, debuffTypeRet, spellId = UnitDebuff(unit, i)
+		if not texture then return nil end
+		debuffType = debuffTypeRet
+		if spellId and type(SpellInfo) == "function" then
 			debuffName = SpellInfo(spellId)
 		end
 	else
+		texture, applications, debuffTypeRet = UnitDebuff(unit, i)
+		if not texture then return nil end
+		RinseScanTooltip:ClearLines()
 		RinseScanTooltipTextLeft1:SetText("")
 		RinseScanTooltipTextRight1:SetText("")
 		RinseScanTooltip:SetUnitDebuff(unit, i)
 		debuffName = RinseScanTooltipTextLeft1:GetText() or ""
-		debuffType = RinseScanTooltipTextRight1:GetText() or ""
-		texture, applications, debuffType = UnitDebuff(unit, i)
+		debuffType = debuffTypeRet or RinseScanTooltipTextRight1:GetText() or ""
 	end
 	if debuffName and SnareDebuffs[debuffName] and not debuffType then
 		debuffType = L["Snare"]
@@ -1420,7 +1452,7 @@ function RinseFrame_OnUpdate(elapsed)
 	if GoodUnit("target") then
 		local _, class = UnitClass("target")
 		local i = 1
-		while debuffIndex < DEBUFFS_MAX do
+		while debuffIndex < DEBUFFS_MAX and i <= 24 do
 			local debuffType, debuffName, texture, applications = GetDebuffInfo("target", i)
 			if not texture then
 				break
@@ -1440,7 +1472,7 @@ function RinseFrame_OnUpdate(elapsed)
 		if GoodUnit(unit) and not UnitIsUnit("target", unit) then
 			local _, class = UnitClass(unit)
 			local i = 1
-			while debuffIndex < DEBUFFS_MAX do
+			while debuffIndex < DEBUFFS_MAX and i <= 16 do
 				local debuffType, debuffName, texture, applications = GetDebuffInfo(unit, i)
 				if not texture then
 					break
@@ -1571,10 +1603,21 @@ function Rinse_Cleanse(button, attemptedCast)
 	local debuff = _G[button:GetName().."Name"]:GetText()
 	local spellName = UsableSpells[button.type]
 	local spellSlot = UsableSpellBookIDs[spellName]
-	-- Check if on gcd
+	if not spellName or not spellSlot then
+		return false
+	end
+	-- Check if on gcd or real spell cooldown
 	-- If gcd active this will return 1.5 for all the relevant spells
-	local _, duration = GetSpellCooldown(spellSlot, bookType)
-	local onGcd = duration == 1.5
+	local start, duration = GetSpellCooldown(spellSlot, bookType)
+	local cdRemaining = 0
+	if start and duration and start > 0 and duration > 0 then
+		cdRemaining = math.max(0, (start + duration) - GetTime())
+	end
+	-- Check if actual spell is on cooldown (e.g. Hand of Freedom [20s], Devour Magic [8s])
+	if duration and duration > 1.5 and cdRemaining > 0 then
+		return false
+	end
+	local onGcd = (duration == 1.5 and cdRemaining > 0)
 	-- Allow attempting 1 spell even if gcd active so that it can be queued
 	if attemptedCast and onGcd then
 		-- Otherwise don't bother trying to cast
@@ -1590,7 +1633,7 @@ function Rinse_Cleanse(button, attemptedCast)
 	local castingInterruptableSpell = true
 	-- If nampower available, check if we are actually casting something
 	-- to avoid needlessly calling SpellStopCasting and wiping spell queue
-	if GetCurrentCastingInfo then
+	if type(GetCurrentCastingInfo) == "function" then
 		local _, _, _, casting, channeling = GetCurrentCastingInfo()
 		if casting == 0 and channeling == 0 then
 			castingInterruptableSpell = false

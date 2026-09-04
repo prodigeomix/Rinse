@@ -10,7 +10,16 @@ desktop.ini
 *.user
 *.workspace
 
-# Backup and temporary files
+# Python artifacts & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & temporary files
+*.log
 *.bak
 *.tmp
 *.orig
