@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.1] - 2026-09-04
+
+### 🛡️ Critical Fixes & Stability
+* **Resolved Lua 5.0 Upvalue Exhaustion Crash (`too many upvalues (limit=32)`)**: Consolidated 13 loose file-level runtime variables into a unified `state` table and modularized `ADDON_LOADED` and debuff button rendering logic into dedicated helper functions. This brought maximum function upvalues down from 34/32 to <= 21 across all functions, restoring full compatibility with the Vanilla WoW 1.12.1 Lua 5.0 runtime.
+* **Automated Upvalue Limit Enforcement**: Enhanced `tools/validate_lua50.py` with bytecode analysis via `luac -l -p` to automatically prevent any future function from exceeding 30 upvalues in CI.
+
 ## [2.8.0] - 2026-09-04
 
 ### 🛡️ Critical Fixes & Bug Patches

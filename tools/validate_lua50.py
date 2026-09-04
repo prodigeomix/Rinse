@@ -40,6 +40,35 @@ def strip_comments_and_strings(code):
         cleaned_lines.append(line)
     return cleaned_lines
 
+def check_upvalues(filepath, max_allowed=30):
+    violations = []
+    try:
+        import subprocess
+        res = subprocess.run(["luac", "-l", "-p", filepath], capture_output=True, text=True)
+        if res.returncode != 0:
+            violations.append((0, res.stderr.strip()[:100], "luac compilation failed"))
+            return violations
+
+        lines = res.stdout.split('\n')
+        current_fn = None
+        for line in lines:
+            m = re.match(r'function <.+?:(\d+),(\d+)>', line)
+            if m:
+                current_fn = (int(m.group(1)), int(m.group(2)))
+            m_uv = re.search(r'(\d+)\s+upvalues', line)
+            if m_uv and current_fn:
+                uv_count = int(m_uv.group(1))
+                if uv_count > max_allowed:
+                    violations.append((
+                        current_fn[0],
+                        f"function (lines {current_fn[0]}-{current_fn[1]})",
+                        f"Too many upvalues: {uv_count} (Lua 5.0 limit is 32, max allowed is {max_allowed})"
+                    ))
+                current_fn = None
+    except FileNotFoundError:
+        pass
+    return violations
+
 def validate_file(filepath):
     if not os.path.exists(filepath):
         print(f"Error: File '{filepath}' does not exist.")
@@ -56,6 +85,10 @@ def validate_file(filepath):
             if re.search(pattern, line):
                 original_line = content.split('\n')[line_num - 1].strip()
                 violations.append((line_num, original_line, description))
+
+    # Check Lua 5.0 function upvalues limit (max 32 in Lua 5.0, enforce <= 30)
+    uv_violations = check_upvalues(filepath, max_allowed=30)
+    violations.extend(uv_violations)
 
     print(f"Scanning: {filepath}")
     if violations:
