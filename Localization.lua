@@ -48,6 +48,7 @@ Rinse.L = {
     ["Slip'kik's Savvy"] = 1,
     ["Thunderfury"] = 1,
     ["Magma Shackles"] = 1,
+    ["Thunderclap"] = 1,
     ["Silence"] = 1,
     ["Ancient Hysteria"] = 1,
     ["Ignite Mana"] = 1,
@@ -198,6 +199,7 @@ if locale == "zhCN" then
     Rinse.L["Slip'kik's Savvy"] = "斯里基克的机智"
     Rinse.L["Thunderfury"] = "雷霆之怒"
     Rinse.L["Magma Shackles"] = "熔岩镣铐"
+    Rinse.L["Thunderclap"] = "雷霆一击"
     -- ClassFilter
     Rinse.L["Silence"] = "沉默"
     Rinse.L["Ancient Hysteria"] = "上古狂乱"

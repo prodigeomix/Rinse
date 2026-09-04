@@ -49,6 +49,21 @@ The primary objective of this profile is **maximizing healer mana efficiency** a
 
 ---
 
+### E. `Thunderclap` vs. `Twisted Reflection` (Lord Kazzak — World Boss) [CRITICAL DISPEL SAFETY]
+* **Mechanic:** AoE Nature damage and 10-second Magic debuff slowing attack speed by 50% (100% attack speed increase) and movement speed by 60% on nearby tanks and melee.
+* **The Blacklist Pitfall:**
+  * Healers often seek to exclude Thunderclap to avoid wasting dispels on melee DPS during the frantic Kazzak encounter.
+  * **Critical Hazard:** In Rinse, blacklisted debuffs trigger same-type suppression (`d2.type == dType`). Because both *Thunderclap* and *Twisted Reflection* are classified as **Magic**, placing Thunderclap on the `Blacklist` suppresses **all Magic debuffs on any afflicted player**.
+  * If a tank or melee DPS has Thunderclap and subsequently receives *Twisted Reflection*, Rinse **completely conceals Twisted Reflection**. Healers receive zero prompts, allowing Lord Kazzak to heal for **25,000 HP per hit** received, triggering an unavoidable raid wipe.
+* **The Solution — Default Filter (`DefaultFilter`), NOT Blacklist:**
+  * Thunderclap is placed in `DefaultFilter` and auto-migrated out of `BLACKLIST` on addon load.
+  * Debuffs in `Filter` are ignored without suppressing other debuffs on that player.
+  * If a player has Thunderclap, Rinse ignores it to conserve healer mana (~380 mana per cast) and dispel GCDs.
+  * The moment *Twisted Reflection* lands on that player, it immediately bypasses the filter and is promoted to #1 raid priority via `PriorityDebuffs`.
+  * **Verdict:** **MANDATORY IN `FILTER`, FORBIDDEN IN `BLACKLIST`.**
+
+---
+
 ## 3. Class Filters (Melee / Non-Mana Users): Scrutiny & Exceptions
 
 ### A. Mana Drains on Warriors & Rogues (`Ignite Mana`, `Ancient Hysteria`, `Mana Burn`, `Tainted Mind`, `Moroes Curse`, `Curse of Manascale`)
@@ -113,8 +128,9 @@ The profile moves the following debuffs to the **top of the priority queue**, ov
 | Test Dimension | Tool / Method | Result | Details |
 | :--- | :--- | :--- | :--- |
 | **Lua Bytecode Compilation** | `luac.exe -p` (Lua 5.1) | **PASSED (0 Errors)** | Both `Localization.lua` and `Rinse.lua` are syntactically pristine. |
-| **String Table Resolution** | Python Ast & Lua 5.1 Runner | **PASSED** | All 16 newly added debuffs resolve 1-to-1 without returning `nil`. |
+| **String Table Resolution** | Python Ast & Lua 5.1 Runner | **PASSED** | All debuffs including `Thunderclap` resolve 1-to-1 without returning `nil`. |
 | **Class Lifecycle Simulation** | Headless WoW Engine Mock | **PASSED (9/9 Classes)** | Verified `ADDON_LOADED`, frame creation, event hooks, and dispel loops for all 9 classes. |
+| **Auto-Migration Safety** | Static & Lua Analysis | **PASSED** | `RINSE_CHAR_CONFIG.BLACKLIST` correctly auto-migrates `Thunderclap` to `FILTER`. |
 | **CPU / Memory Footprint** | Static Analysis | **OPTIMAL** | O(1) table lookups for Blacklist/ClassFilter arrays; zero GC thrash during combat ticks. |
 
 ---

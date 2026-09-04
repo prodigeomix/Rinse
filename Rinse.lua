@@ -223,6 +223,7 @@ DefaultFilter[L["Fengus' Ferocity"]] = true
 DefaultFilter[L["Slip'kik's Savvy"]] = true
 DefaultFilter[L["Thunderfury"]] = true
 DefaultFilter[L["Magma Shackles"]] = true
+DefaultFilter[L["Thunderclap"]] = true
 DefaultFilter[L["Emerald Rot"]] = true
 
 local Filter = {}
@@ -1193,6 +1194,13 @@ function RinseFrame_OnEvent()
 			[L["Snare"]] = Spells[playerClass][L["Snare"]] == nil,
 			[L["Curse"]] = Spells[playerClass][L["Curse"]] == nil,
 		}
+		-- Auto-migration: Thunderclap is Magic on Kazzak. If on Blacklist, it dangerously
+		-- suppresses Twisted Reflection (also Magic). Safely migrate to Filter.
+		if RINSE_CHAR_CONFIG.BLACKLIST[L["Thunderclap"]] or RINSE_CHAR_CONFIG.BLACKLIST["Thunderclap"] then
+			RINSE_CHAR_CONFIG.BLACKLIST[L["Thunderclap"]] = nil
+			RINSE_CHAR_CONFIG.BLACKLIST["Thunderclap"] = nil
+			RINSE_CHAR_CONFIG.FILTER[L["Thunderclap"]] = true
+		end
 		RINSE_CHAR_CONFIG.FILTER_CLASS = RINSE_CHAR_CONFIG.FILTER_CLASS or {
 			WARRIOR = {},
 			DRUID   = {},
