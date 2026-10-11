@@ -1436,7 +1436,12 @@ function RinseFrame_OnEvent()
 		state.lastButton = nil
 	elseif event == "CHAT_MSG_ADDON" and arg1 == "Rinse" and arg4 ~= UnitName("player") then
 		if arg2 == "REPORT_ADDON_VERSION" then
-			SendAddonMessage("Rinse", "V_"..GetAddOnMetadata("Rinse", "Version"), "RAID")
+			local replyChannel = arg3 or (GetNumRaidMembers() > 0 and "RAID" or "PARTY")
+			if ChatThrottleLib and ChatThrottleLib.SendAddonMessage then
+				ChatThrottleLib:SendAddonMessage("NORMAL", "Rinse", "V_"..GetAddOnMetadata("Rinse", "Version"), replyChannel)
+			else
+				SendAddonMessage("Rinse", "V_"..GetAddOnMetadata("Rinse", "Version"), replyChannel)
+			end
 		elseif state.versionsCheckTimer and strfind(arg2, "^V_") then
 			state.AddonVersions = state.AddonVersions or {}
 			local v = strsub(arg2, 3) or ""
@@ -2129,7 +2134,11 @@ function Rinse_StartVersionsCheck()
 		channel = "PARTY"
 	end
 	if channel then
-		SendAddonMessage("Rinse", "REPORT_ADDON_VERSION", channel)
+		if ChatThrottleLib and ChatThrottleLib.SendAddonMessage then
+			ChatThrottleLib:SendAddonMessage("NORMAL", "Rinse", "REPORT_ADDON_VERSION", channel)
+		else
+			SendAddonMessage("Rinse", "REPORT_ADDON_VERSION", channel)
+		end
 		DEFAULT_CHAT_FRAME:AddMessage(BLUE.."[Rinse]|r "..L["Version check start..."])
 		state.versionsCheckTimer = 3
 	else
