@@ -1,0 +1,37 @@
+name: Package Addon
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: Rinse
+
+      - name: Create Release Zip
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          rm -rf Rinse/.git Rinse/.github Rinse/tools Rinse/tests Rinse/__pycache__
+          rm -f Rinse/*.py Rinse/*.sh Rinse/.gitignore Rinse/.editorconfig Rinse/.luarc.json Rinse/.gitattributes
+          rm -f Rinse/HANDOFF.md Rinse/AGENTS.md
+          zip -r "Rinse-${TAG_NAME}.zip" Rinse
+          zip -r Rinse.zip Rinse
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            Rinse-*.zip
+            Rinse.zip
+          generate_release_notes: true
